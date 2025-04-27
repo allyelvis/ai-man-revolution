@@ -1,6 +1,6 @@
 "use server"
 
-import { ethers } from "ethers"
+import { JsonRpcProvider, formatEther } from "ethers"
 
 // Server action to get provider
 export async function getProvider() {
@@ -21,11 +21,11 @@ export async function fetchBalance(address: string) {
   }
 
   const infuraUrl = `https://mainnet.infura.io/v3/${infuraKey}`
-  const provider = new ethers.providers.JsonRpcProvider(infuraUrl)
+  const provider = new JsonRpcProvider(infuraUrl)
 
   try {
     const balance = await provider.getBalance(address)
-    return ethers.utils.formatEther(balance)
+    return formatEther(balance)
   } catch (error) {
     console.error("Error fetching balance:", error)
     throw new Error("Failed to fetch balance")

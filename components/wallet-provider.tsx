@@ -1,13 +1,13 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { ethers } from "ethers"
+import { Wallet, JsonRpcProvider, parseEther } from "ethers"
 import { saveWalletData, loadWalletData, clearWalletData } from "@/lib/storage"
 import { getProvider, fetchBalance } from "@/lib/actions"
 
 type WalletContextType = {
-  wallet: ethers.Wallet | null
-  provider: ethers.providers.JsonRpcProvider | null
+  wallet: Wallet | null
+  provider: JsonRpcProvider | null
   balances: { ETH: number; USDT: number; DAI: number }
   history: Transaction[]
   createWallet: () => void
@@ -32,8 +32,8 @@ export type Transaction = {
 const WalletContext = createContext<WalletContextType | undefined>(undefined)
 
 export function WalletProvider({ children }: { children: ReactNode }) {
-  const [wallet, setWallet] = useState<ethers.Wallet | null>(null)
-  const [provider, setProvider] = useState<ethers.providers.JsonRpcProvider | null>(null)
+  const [wallet, setWallet] = useState<Wallet | null>(null)
+  const [provider, setProvider] = useState<JsonRpcProvider | null>(null)
   const [balances, setBalances] = useState<{ ETH: number; USDT: number; DAI: number }>({
     ETH: 0,
     USDT: 0,
@@ -47,7 +47,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const savedData = loadWalletData()
     if (savedData) {
       try {
-        const loadedWallet = new ethers.Wallet(savedData.privateKey)
+        const loadedWallet = new Wallet(savedData.privateKey)
         setWallet(loadedWallet)
         setBalances(savedData.balances || { ETH: 0, USDT: 0, DAI: 0 })
         setHistory(savedData.history || [])
@@ -69,7 +69,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [wallet, balances, history])
 
   const createWallet = () => {
-    const newWallet = ethers.Wallet.createRandom()
+    const newWallet = Wallet.createRandom()
     setWallet(newWallet)
     setBalances({ ETH: 0, USDT: 0, DAI: 0 })
     setHistory([])
@@ -79,7 +79,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const importWallet = (privateKey: string) => {
     try {
-      const importedWallet = new ethers.Wallet(privateKey)
+      const importedWallet = new Wallet(privateKey)
       setWallet(importedWallet)
       setBalances({ ETH: 0, USDT: 0, DAI: 0 })
       setHistory([])
@@ -97,7 +97,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     try {
       const infuraUrl = await getProvider()
-      const newProvider = new ethers.providers.JsonRpcProvider(infuraUrl)
+      const newProvider = new JsonRpcProvider(infuraUrl)
       setProvider(newProvider)
       setIsConnected(true)
       await fetchRealBalance()
@@ -166,10 +166,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     if (!wallet || !provider || amount <= 0) return false
 
     try {
-      const signer = wallet.connect(provider)
-      const tx = await signer.sendTransaction({
+      // In ethers v6, we connect the wallet to the provider differently
+      const connectedWallet = wallet.connect(provider)
+
+      const tx = await connectedWallet.sendTransaction({
         to,
-        value: ethers.utils.parseEther(amount.toString()),
+        value: parseEther(amount.toString()),
       })
 
       await tx.wait()
