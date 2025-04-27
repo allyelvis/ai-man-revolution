@@ -131,8 +131,17 @@ export default function WalletInterface() {
 
     try {
       await connectToBlockchain()
-    } catch (err) {
-      setError("Failed to connect to blockchain")
+      // Check if we're actually connected after the attempt
+      if (!isConnected) {
+        setError("Failed to connect to blockchain. Please check your network connection and try again.")
+      }
+    } catch (err: any) {
+      // Provide more specific error messages
+      if (err.message?.includes("invalid JSON")) {
+        setError("Network error: Unable to connect to Ethereum network. Please try again later.")
+      } else {
+        setError(`Failed to connect: ${err.message || "Unknown error"}`)
+      }
       console.error(err)
     } finally {
       setIsLoading(false)

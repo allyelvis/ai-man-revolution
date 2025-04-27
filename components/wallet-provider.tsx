@@ -97,7 +97,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     try {
       const infuraUrl = await getProvider()
-      const newProvider = new JsonRpcProvider(infuraUrl)
+
+      // Create the provider with proper configuration for ethers v6
+      const newProvider = new JsonRpcProvider(infuraUrl, undefined, {
+        staticNetwork: true,
+        polling: true,
+        batchStallTime: 0,
+      })
+
+      // Test the connection
+      await newProvider.getBlockNumber()
+
       setProvider(newProvider)
       setIsConnected(true)
       await fetchRealBalance()
@@ -111,12 +121,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     if (wallet) {
       try {
         const balance = await fetchBalance(wallet.address)
+        // Handle the case where balance might be a string now
+        const numBalance = typeof balance === "string" ? Number.parseFloat(balance) : balance
+
         setBalances((prev) => ({
           ...prev,
-          ETH: Number.parseFloat(balance),
+          ETH: numBalance,
         }))
       } catch (error) {
         console.error("Failed to fetch balance:", error)
+        // Don't update the balance on error
       }
     }
   }
@@ -174,7 +188,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         value: parseEther(amount.toString()),
       })
 
-      await tx.wait()
+      // Wait for transaction with timeout
+      const receipt = await Promise.race([
+        tx.wait(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Transaction timeout")), 60000)),
+      ])
 
       const newTransaction: Transaction = {
         type: "Real Transfer",
